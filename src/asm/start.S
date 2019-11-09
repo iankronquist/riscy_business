@@ -1,0 +1,62 @@
+#define MPP_MACHINE (0b11 << 11)
+#define MPIE_YES (1 << 7)
+#define MIE_YES (1 << 3)
+
+/* Machine timer interrupt enable */
+#define MIE_MTIE (1 << 7)
+/* Machine external interrupt enable */
+#define MIE_MEIE (1 << 11)
+/* Machine software interrupt enable */
+#define MIE_MSIE (1 << 11)
+
+#define PAGE_SIZE 0x1000
+.section .text.init
+.global _start
+_start:
+    /* Any hardware threads (hart) that are not bootstrapping */
+    /* need to wait for an IPI */
+    csrr    t0, mhartid
+    bnez    t0, hang
+    /* SATP should be zero, but let's make sure */
+    csrw    satp, zero
+    /* Zero BSS */
+    la a0, __bss_start
+    la a1, __bss_end
+    bgeu a0, a1, 2f
+1:
+    sd zero, (a0)
+    addi a0, a0, 8
+    bltu a0, a1, 1b
+2:
+    /* Set up stack */
+    la sp, _stack_top
+    /* Set global pointer to the beginning of data/rodata */
+    la gp, _global_pointer
+
+    /* MPIE is whether interrupts were enabled prior to the last trap in M
+    mode. */
+    /* MIE is machine interrupts enabled */
+    /* MPP is the previous privilege level */
+    /* li t0, MPP_MACHINE | MPIE_YES | MIE_YES */
+    li t0, MPP_MACHINE
+    csrw mstatus, t0
+
+    /* csrw mie, t3 */
+
+    /* Set machine exception PC to rmain so we will return to it */
+    /* This is the equivalent of the elr */
+    la t1, rmain
+    csrw mepc, t1
+    /* Return into machine mode code */
+    mret
+
+
+hang:
+    wfi
+    j hang
+
+
+.section .data
+_stack_bottom:
+.skip 16 * PAGE_SIZE
+_stack_top:
