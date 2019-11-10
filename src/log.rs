@@ -1,7 +1,7 @@
 use crate::debug;
 use crate::mutex::Mutex;
-use core::fmt::{Arguments, Error, Write};
 use crate::uart;
+use core::fmt::{Arguments, Error, Write};
 
 pub struct Logger<'a> {
     device: Option<&'a mut dyn Write>,

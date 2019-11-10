@@ -78,8 +78,8 @@ impl<'a> DeviceTree<'a> {
         let off_dt_strings = u32::from_be((*dtb).off_dt_strings);
         let size_dt_strings = u32::from_be((*dtb).size_dt_strings);
         if (size as usize) < mem::size_of::<DeviceTreeHeader>()
-            || size <= off_dt_struct + size_dt_struct
-            || size <= off_dt_strings + size_dt_strings
+            || size < off_dt_struct + size_dt_struct
+            || size < off_dt_strings + size_dt_strings
         {
             log!("Device Tree Blob: bad size");
             return None;
@@ -93,11 +93,92 @@ impl<'a> DeviceTree<'a> {
     }
 
     pub fn dump(&self) {
+        hexdump!(self.data);
         let iter = self.walk();
-        hexdump!(iter.bytes);
+        //hexdump!(iter.bytes);
         for n in iter {
             log!("{:?}", n);
         }
+    }
+
+    pub fn find_regs(&self, name: &str) -> Option<(usize, usize)> {
+        match self.find_property(name, "reg")? {
+            DeviceTreeStructure::Property(slc, _) => {
+                let size = match slc[0..8].try_into() {
+                    Ok(arr) => u32::from_be_bytes(arr) as usize,
+                    _ => {
+                        return None;
+                    }
+                };
+                let start = match slc[8..16].try_into() {
+                    Ok(arr) => u32::from_be_bytes(arr) as usize,
+                    _ => {
+                        return None;
+                    }
+                };
+                Some((start, size))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn find_property(&self, name: &str, prop: &str) -> Option<DeviceTreeStructure> {
+        enum SearchState {
+            SearchNode,
+            SearchProperty,
+            SearchEndProperty(usize), // depth
+        }
+        let mut state = SearchState::SearchNode;
+        for n in self.walk() {
+            match state {
+                SearchState::SearchNode => match n {
+                    DeviceTreeStructure::NodeBegin(node_name) => {
+                        if node_name.starts_with(name)
+                            && node_name.as_bytes()[name.len()] == '@' as u8
+                        {
+                            state = SearchState::SearchProperty;
+                        }
+                    }
+                    _ => {
+                        continue;
+                    }
+                },
+                SearchState::SearchProperty => match n {
+                    DeviceTreeStructure::Property(bytes, prop_name) => {
+                        if prop_name == prop {
+                            return Some(n);
+                        }
+                    }
+                    DeviceTreeStructure::NodeBegin(_) => {
+                        state = SearchState::SearchEndProperty(1);
+                        continue;
+                    }
+                    _ => {
+                        continue;
+                    }
+                },
+                SearchState::SearchEndProperty(depth) => {
+                    match n {
+                        DeviceTreeStructure::NodeBegin(node_name) => {
+                            state = SearchState::SearchEndProperty(depth + 1);
+                            continue;
+                        }
+                        DeviceTreeStructure::NodeEnd => {
+                            if depth == 1 {
+                                // End of the node, if we haven't found the reg we aren't going to.
+                                return None;
+                            }
+                            state = SearchState::SearchEndProperty(depth - 1);
+                            continue;
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn find(&self, name: &str) -> Option<usize> {

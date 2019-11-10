@@ -17,6 +17,8 @@ SECTIONS {
     .text : {
         __kernel_start = .;
         __text_start = .;
+        /* .text.init must go first */
+        *(.text.init)
         *(.text)
     } >ram AT>ram :text
 

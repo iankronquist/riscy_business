@@ -25,6 +25,7 @@ QEMU_MACH=virt
 QEMU_CPU=rv64
 QEMU_CPUS=4
 QEMU_MEM=128M
+QEMU_FLAGS=
 
 HARD_DRIVE=hdd.dsk
 HARD_DRIVE_MB=32
@@ -46,11 +47,14 @@ $(RUST_LIB): $(wildcard src/*.rs)
 $(KERNEL): $(LINKER_SCRIPT) $(OBJ_ASM) $(RUST_LIB)
 	$(LD) -T $(LINKER_SCRIPT) $(OBJ_ASM) $(RUST_LIB) -o $@ $(LDFLAGS)
 
+dbg: QEMU_FLAGS += -s -S
+dbg: run
+
 run: $(KERNEL) $(HARD_DRIVE)
-	$(QEMU) -machine $(QEMU_MACH) -cpu $(QEMU_CPU) -smp $(QEMU_CPUS) -m $(QEMU_MEM)  -serial mon:stdio -bios none -kernel $(KERNEL) -drive if=none,format=raw,file=$(HARD_DRIVE),id=$(HARD_DRIVE_ID) -device virtio-blk-device,drive=$(HARD_DRIVE_ID)
+	$(QEMU) -machine $(QEMU_MACH) -cpu $(QEMU_CPU) -smp $(QEMU_CPUS) -m $(QEMU_MEM)  -serial mon:stdio -bios none -kernel $(KERNEL) -drive if=none,format=raw,file=$(HARD_DRIVE),id=$(HARD_DRIVE_ID) -device virtio-blk-device,drive=$(HARD_DRIVE_ID) $(QEMU_FLAGS)
 
 
-.PHONY: clean run
+.PHONY: clean run dbg
 clean:
 	cargo clean
-	rm -f $(OUT)	
+	rm -f $(OBJ_ASM)

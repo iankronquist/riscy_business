@@ -18,3 +18,10 @@ pub fn hexdump(writer: &mut dyn Write, mem: &[u8]) {
     }
     write!(writer, "\n");
 }
+
+#[inline(never)]
+pub fn breakpoint() {
+    unsafe {
+        asm!("ebreak"::::"volatile");
+    }
+}

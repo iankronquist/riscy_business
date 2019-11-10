@@ -14,4 +14,5 @@ crate-type = ["staticlib"]
 #[features]
 #platform=["rv64"]
 
-
+#[profile.dev]
+#opt-level = 2
