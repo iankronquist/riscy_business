@@ -104,21 +104,23 @@ impl<'a> DeviceTree<'a> {
     pub fn find_regs(&self, name: &str) -> Option<(usize, usize)> {
         match self.find_property(name, "reg")? {
             DeviceTreeStructure::Property(slc, _) => {
-                let size = match slc[0..8].try_into() {
-                    Ok(arr) => u32::from_be_bytes(arr) as usize,
-                    _ => {
+                let start = match slc[0..8].try_into() {
+                    Ok(arr) => u64::from_be_bytes(arr) as usize,
+                    Err(e) => {
+                        panic!("slice first {:?}", e);
                         return None;
                     }
                 };
-                let start = match slc[8..16].try_into() {
-                    Ok(arr) => u32::from_be_bytes(arr) as usize,
+                let size = match slc[8..16].try_into() {
+                    Ok(arr) => u64::from_be_bytes(arr) as usize,
                     _ => {
+                        panic!("slice second");
                         return None;
                     }
                 };
                 Some((start, size))
             }
-            _ => None,
+            _ => { panic!("asdf"); return None; },
         }
     }
 
@@ -185,7 +187,7 @@ impl<'a> DeviceTree<'a> {
         for n in self.walk() {
             match n {
                 DeviceTreeStructure::NodeBegin(node_name) => {
-                    if node_name.starts_with(name) && node_name.as_bytes()[name.len()] == '@' as u8
+                    if node_name.starts_with(name) && node_name.as_bytes().len() > name.len() && node_name.as_bytes()[name.len()] == '@' as u8
                     {
                         if let Ok(addr) = usize::from_str_radix(&node_name[name.len() + 1..], 16) {
                             return Some(addr);
@@ -339,4 +341,27 @@ pub enum DeviceTreeStructure<'a> {
     NodeEnd,
     NodeBegin(&'a str),
     Property(&'a [u8], &'a str),
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use std::fs::File;
+    use std::vec::Vec;
+    use super::*;
+    #[test]
+    fn parse_device_tree() {
+            let data = std::fs::read("./tests/riscv-virt.dtb").unwrap();
+            let dtb = unsafe { DeviceTree::from_address(&data[0] as *const u8 as usize) }.unwrap();
+            let uart_spot = dtb.find("uart").unwrap();
+            assert_eq!(uart_spot, 0x10000000);
+            let pci_spot = dtb.find("pci").unwrap();
+            assert_eq!(pci_spot, 0x30000000);
+            let interrupt_controller_spot = dtb.find("interrupt-controller").unwrap();
+            assert_eq!(interrupt_controller_spot, 0xc000000);
+
+            let _ = dtb.find_property("uart", "reg").unwrap();
+            let uart_regs = dtb.find_regs("uart").unwrap();
+            assert_eq!(uart_regs, (0x10000000, 0x100));
+    }
 }
