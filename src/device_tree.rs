@@ -65,7 +65,7 @@ impl<'a> DeviceTree<'a> {
             && (*dtb).version != DEVICE_TREE_CURRENT_VERSION
         {
             log!(
-                "Device Tree Blob: bad version b:x} {:x} {:x}",
+                "Device Tree Blob: bad version {:x} {:x} {:x}",
                 (*dtb).version,
                 (*dtb).last_comp_version,
                 DEVICE_TREE_COMPAT_VERSION
@@ -77,7 +77,7 @@ impl<'a> DeviceTree<'a> {
         let size_dt_struct = u32::from_be((*dtb).size_dt_struct);
         let off_dt_strings = u32::from_be((*dtb).off_dt_strings);
         let size_dt_strings = u32::from_be((*dtb).size_dt_strings);
-        if size < mem::size_of::<DeviceTreeHeader>()
+        if (size as usize) < mem::size_of::<DeviceTreeHeader>()
             || size <= off_dt_struct + size_dt_struct
             || size <= off_dt_strings + size_dt_strings
         {
@@ -104,8 +104,7 @@ impl<'a> DeviceTree<'a> {
         for n in self.walk() {
             match n {
                 DeviceTreeStructure::NodeBegin(node_name) => {
-                    if node_name.starts_with(name)
-                        && node_name.as_bytes()[name.len()] == '@' as u8
+                    if node_name.starts_with(name) && node_name.as_bytes()[name.len()] == '@' as u8
                     {
                         if let Ok(addr) = usize::from_str_radix(&node_name[name.len() + 1..], 16) {
                             return Some(addr);

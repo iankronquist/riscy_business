@@ -1,7 +1,6 @@
+use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
-use core::cell::UnsafeCell;
-
 
 // FIXME: The Rustonomicon has a passage about poisoning data during a panic
 // unwind...
@@ -13,7 +12,10 @@ pub struct Mutex<T> {
 
 impl<T> Mutex<T> {
     pub const fn new(item: T) -> Self {
-        Self { lock: AtomicBool::new(false), item: UnsafeCell::new(item) }
+        Self {
+            lock: AtomicBool::new(false),
+            item: UnsafeCell::new(item),
+        }
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
@@ -21,12 +23,13 @@ impl<T> Mutex<T> {
             // Need to find a riscv equivalent...
             //unsafe { asm!("pause" :::: "volatile"); }
         }
-        MutexGuard { lock: &self.lock, item: unsafe { &mut *self.item.get() } }
+        MutexGuard {
+            lock: &self.lock,
+            item: unsafe { &mut *self.item.get() },
+        }
     }
-    pub unsafe fn bust_lock(&mut self) {
-        self.unlock();
-    }
-    fn unlock(&mut self) {
+
+    pub unsafe fn bust_lock(&self) {
         self.lock.store(false, Ordering::SeqCst);
     }
 }

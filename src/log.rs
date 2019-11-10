@@ -1,5 +1,7 @@
+use crate::debug;
 use crate::mutex::Mutex;
-use core::fmt::{Write, Error, Arguments};
+use core::fmt::{Arguments, Error, Write};
+use crate::uart;
 
 pub struct Logger<'a> {
     device: Option<&'a mut dyn Write>,
@@ -17,18 +19,12 @@ impl<'a> Logger<'a> {
             let _ = write!(writer, "{}\n", fmt);
         }
     }
-}
-
-/*
-impl<'a> Write for Logger<'a> {
-    fn write_str(&mut self, s: &str) -> Result<(), Error> {
-        if let Some(writer) = self.device {
-            writer.write_str(s)
-        } else {
-            Ok(())
+    pub fn hexdump(&mut self, mem: &[u8]) {
+        if let Some(writer) = &mut self.device {
+            debug::hexdump(writer, mem);
         }
     }
-}*/
+}
 
 pub static LOGGER: Mutex<Logger<'static>> = Mutex::new(Logger::new());
 
@@ -43,10 +39,18 @@ macro_rules! log {
     };
     ($fmt:tt) => {
         {
-            use debug;
+            use log;
             let mut ul = log::LOGGER.lock();
             ul.log(format_args!($fmt));
-            //write!(*ul, "{}", format_args!($fmt));
         }
     };
+}
+
+#[macro_export]
+macro_rules! hexdump {
+    ($bytes:expr) => {{
+        use log;
+        let mut ul = log::LOGGER.lock();
+        ul.hexdump($bytes);
+    }};
 }

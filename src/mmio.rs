@@ -1,9 +1,21 @@
-pub unsafe fn write(address: usize, offset: usize, value: u8) {
-    let reg = address as *mut u8;
-    reg.add(offset).write_volatile(value);
+use core::cell::RefCell;
+use core::slice;
+pub struct MmioRegion<'a> {
+    rgn: RefCell<&'a mut [u8]>,
 }
 
-pub unsafe fn read(address: usize, offset: usize, value: u8) -> u8 {
-    let reg = address as *mut u8;
-    reg.add(offset).read_volatile()
+impl<'a> MmioRegion<'a> {
+    pub fn from_slice(slc: &'a mut [u8]) -> Self {
+        Self {
+            rgn: RefCell::new(slc),
+        }
+    }
+    pub fn write(&self, offset: usize, value: u8) {
+        let ptr = (self.rgn.borrow_mut()[offset]) as *mut u8;
+        unsafe { ptr.write_volatile(value) }
+    }
+    pub fn read(&self, offset: usize, value: u8) -> u8 {
+        let ptr = self.rgn.borrow_mut()[offset] as *mut u8;
+        unsafe { ptr.read_volatile() }
+    }
 }

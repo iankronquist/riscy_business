@@ -47,7 +47,7 @@ $(KERNEL): $(LINKER_SCRIPT) $(OBJ_ASM) $(RUST_LIB)
 	$(LD) -T $(LINKER_SCRIPT) $(OBJ_ASM) $(RUST_LIB) -o $@ $(LDFLAGS)
 
 run: $(KERNEL) $(HARD_DRIVE)
-	$(QEMU) -machine $(QEMU_MACH) -cpu $(QEMU_CPU) -smp $(QEMU_CPUS) -m $(QEMU_MEM)  -serial mon:stdio -bios none -kernel $(KERNEL) -drive if=none,format=raw,file=$(HARD_DRIVE),id=$(HARD_DRIVE_ID) -device virtio-blk-device,drive=$(HARD_DRIVE_ID) -S -s
+	$(QEMU) -machine $(QEMU_MACH) -cpu $(QEMU_CPU) -smp $(QEMU_CPUS) -m $(QEMU_MEM)  -serial mon:stdio -bios none -kernel $(KERNEL) -drive if=none,format=raw,file=$(HARD_DRIVE),id=$(HARD_DRIVE_ID) -device virtio-blk-device,drive=$(HARD_DRIVE_ID)
 
 
 .PHONY: clean run

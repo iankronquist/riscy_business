@@ -13,6 +13,8 @@
 .section .text.init
 .global _start
 _start:
+    /* Device tree pointer is in a1. Something else is in a0. Do not disturb
+    them */
     /* Any hardware threads (hart) that are not bootstrapping */
     /* need to wait for an IPI */
     csrr    t0, mhartid
@@ -20,13 +22,13 @@ _start:
     /* SATP should be zero, but let's make sure */
     csrw    satp, zero
     /* Zero BSS */
-    la a0, __bss_start
-    la a1, __bss_end
-    bgeu a0, a1, 2f
+    la t0, __bss_start
+    la t1, __bss_end
+    bgeu t0, t1, 2f
 1:
-    sd zero, (a0)
-    addi a0, a0, 8
-    bltu a0, a1, 1b
+    sd zero, (t0)
+    addi t0, t0, 8
+    bltu t0, t1, 1b
 2:
     /* Set up stack */
     la sp, _stack_top
