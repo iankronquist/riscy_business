@@ -16,7 +16,7 @@ impl<'a> Logger<'a> {
     }
     pub fn log(&mut self, fmt: Arguments) {
         if let Some(writer) = &mut self.device {
-            let _ = write!(writer, "{}\n", fmt);
+            let _ = writeln!(writer, "{}", fmt);
         }
     }
     pub fn hexdump(&mut self, mem: &[u8]) {

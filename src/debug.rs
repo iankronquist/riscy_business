@@ -13,10 +13,10 @@ pub fn hexdump(writer: &mut dyn Write, mem: &[u8]) {
         }
         // After 16 bytes, print a newline.
         if ((i % 16) == 15) {
-            write!(writer, "\n");
+            writeln!(writer);
         }
     }
-    write!(writer, "\n");
+    writeln!(writer);
 }
 
 #[inline(never)]

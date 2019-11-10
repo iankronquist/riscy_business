@@ -17,4 +17,3 @@ pub enum MemoryCacheability {
     WriteBack,
     WriteThrough,
 }
-

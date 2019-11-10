@@ -25,7 +25,7 @@ impl<'a> Uart<'a> {
 
     pub fn init(&mut self) {
         if let Some(rgn) = &self.rgn {
-            let lcr: u8 = (1 << 0) | (1 << 1);
+            let lcr: u8 = 1 | (1 << 1);
             rgn.write(3, lcr);
 
             // Set FIFO control

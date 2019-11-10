@@ -4,7 +4,7 @@ use core::convert::TryInto;
 use core::mem;
 // Based on https://github.com/devicetree-org/devicetree-specification/releases/tag/v0.3-rc2
 
-const DEVICE_TREE_MAGIC: u32 = (0xd00dfeedu32).to_be();
+const DEVICE_TREE_MAGIC: u32 = (0xd00d_feedu32).to_be();
 const DEVICE_TREE_COMPAT_VERSION: u32 = (16u32).to_be();
 const DEVICE_TREE_CURRENT_VERSION: u32 = (17u32).to_be();
 
@@ -107,62 +107,58 @@ impl<'a> DeviceTree<'a> {
                 let start = match slc[0..8].try_into() {
                     Ok(arr) => u64::from_be_bytes(arr) as usize,
                     Err(e) => {
-                        panic!("slice first {:?}", e);
                         return None;
                     }
                 };
                 let size = match slc[8..16].try_into() {
                     Ok(arr) => u64::from_be_bytes(arr) as usize,
                     _ => {
-                        panic!("slice second");
                         return None;
                     }
                 };
                 Some((start, size))
             }
-            _ => { panic!("asdf"); return None; },
+            _ => None,
         }
     }
 
     pub fn find_property(&self, name: &str, prop: &str) -> Option<DeviceTreeStructure> {
         enum SearchState {
-            SearchNode,
-            SearchProperty,
-            SearchEndProperty(usize), // depth
+            Node,
+            Propery,
+            EndProperty(usize), // depth
         }
-        let mut state = SearchState::SearchNode;
+        let mut state = SearchState::Node;
         for n in self.walk() {
             match state {
-                SearchState::SearchNode => match n {
+                SearchState::Node => match n {
                     DeviceTreeStructure::NodeBegin(node_name) => {
-                        if node_name.starts_with(name)
-                            && node_name.as_bytes()[name.len()] == '@' as u8
-                        {
-                            state = SearchState::SearchProperty;
+                        if node_name.starts_with(name) && node_name.as_bytes()[name.len()] == b'@' {
+                            state = SearchState::Propery;
                         }
                     }
                     _ => {
                         continue;
                     }
                 },
-                SearchState::SearchProperty => match n {
+                SearchState::Propery => match n {
                     DeviceTreeStructure::Property(bytes, prop_name) => {
                         if prop_name == prop {
                             return Some(n);
                         }
                     }
                     DeviceTreeStructure::NodeBegin(_) => {
-                        state = SearchState::SearchEndProperty(1);
+                        state = SearchState::EndProperty(1);
                         continue;
                     }
                     _ => {
                         continue;
                     }
                 },
-                SearchState::SearchEndProperty(depth) => {
+                SearchState::EndProperty(depth) => {
                     match n {
                         DeviceTreeStructure::NodeBegin(node_name) => {
-                            state = SearchState::SearchEndProperty(depth + 1);
+                            state = SearchState::EndProperty(depth + 1);
                             continue;
                         }
                         DeviceTreeStructure::NodeEnd => {
@@ -170,7 +166,7 @@ impl<'a> DeviceTree<'a> {
                                 // End of the node, if we haven't found the reg we aren't going to.
                                 return None;
                             }
-                            state = SearchState::SearchEndProperty(depth - 1);
+                            state = SearchState::EndProperty(depth - 1);
                             continue;
                         }
                         _ => {
@@ -187,7 +183,9 @@ impl<'a> DeviceTree<'a> {
         for n in self.walk() {
             match n {
                 DeviceTreeStructure::NodeBegin(node_name) => {
-                    if node_name.starts_with(name) && node_name.as_bytes().len() > name.len() && node_name.as_bytes()[name.len()] == '@' as u8
+                    if node_name.starts_with(name)
+                        && node_name.as_bytes().len() > name.len()
+                        && node_name.as_bytes()[name.len()] == b'@'
                     {
                         if let Ok(addr) = usize::from_str_radix(&node_name[name.len() + 1..], 16) {
                             return Some(addr);
@@ -203,7 +201,11 @@ impl<'a> DeviceTree<'a> {
     fn header(&self) -> DeviceTreeHeader {
         assert!(self.data.len() > core::mem::size_of::<DeviceTreeHeader>());
         let mut hdr: DeviceTreeHeader;
-        hdr = unsafe { core::ptr::read(&self.data[0] as *const u8 as *const DeviceTreeHeader) };
+        // FIXME: Find a better way to do this...
+        hdr = unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
+            core::ptr::read(&self.data[0] as *const u8 as *const DeviceTreeHeader)
+        };
         hdr
     }
 
@@ -237,13 +239,13 @@ pub struct DeviceTreeStructureIterator<'a> {
 impl<'a> DeviceTreeStructureIterator<'a> {
     fn consume_u32(&mut self) -> Option<u32> {
         let bytes: Result<[u8; 4], _> = self.bytes[self.index..self.index + 4].try_into();
-        return match bytes {
+        match bytes {
             Ok(b) => {
                 self.index += 4;
                 Some(u32::from_be_bytes(b))
             }
             Err(_) => None,
-        };
+        }
     }
     fn consume_padding(&mut self) {
         if (self.index % 4) != 0 {
@@ -251,7 +253,7 @@ impl<'a> DeviceTreeStructureIterator<'a> {
         }
     }
     fn consume_str(&mut self) -> Option<&'a str> {
-        return match str_from_bytes(&self.bytes[self.index..]) {
+        match str_from_bytes(&self.bytes[self.index..]) {
             None => {
                 log!("Corrupt dtb");
                 None
@@ -261,7 +263,7 @@ impl<'a> DeviceTreeStructureIterator<'a> {
                 self.consume_padding();
                 Some(s)
             }
-        };
+        }
     }
 }
 
@@ -321,7 +323,7 @@ impl<'a> Iterator for DeviceTreeStructureIterator<'a> {
     }
 }
 
-fn str_from_bytes<'a>(bytes: &'a [u8]) -> Option<&'a str> {
+fn str_from_bytes(bytes: &'_ [u8]) -> Option<&'_ str> {
     let mut len = 0;
     while len < bytes.len() {
         if bytes[len] == 0 {
@@ -346,22 +348,22 @@ pub enum DeviceTreeStructure<'a> {
 #[cfg(test)]
 mod tests {
     extern crate std;
+    use super::*;
     use std::fs::File;
     use std::vec::Vec;
-    use super::*;
     #[test]
     fn parse_device_tree() {
-            let data = std::fs::read("./tests/riscv-virt.dtb").unwrap();
-            let dtb = unsafe { DeviceTree::from_address(&data[0] as *const u8 as usize) }.unwrap();
-            let uart_spot = dtb.find("uart").unwrap();
-            assert_eq!(uart_spot, 0x10000000);
-            let pci_spot = dtb.find("pci").unwrap();
-            assert_eq!(pci_spot, 0x30000000);
-            let interrupt_controller_spot = dtb.find("interrupt-controller").unwrap();
-            assert_eq!(interrupt_controller_spot, 0xc000000);
+        let data = std::fs::read("./tests/riscv-virt.dtb").unwrap();
+        let dtb = unsafe { DeviceTree::from_address(&data[0] as *const u8 as usize) }.unwrap();
+        let uart_spot = dtb.find("uart").unwrap();
+        assert_eq!(uart_spot, 0x10000000);
+        let pci_spot = dtb.find("pci").unwrap();
+        assert_eq!(pci_spot, 0x30000000);
+        let interrupt_controller_spot = dtb.find("interrupt-controller").unwrap();
+        assert_eq!(interrupt_controller_spot, 0xc000000);
 
-            let _ = dtb.find_property("uart", "reg").unwrap();
-            let uart_regs = dtb.find_regs("uart").unwrap();
-            assert_eq!(uart_regs, (0x10000000, 0x100));
+        let _ = dtb.find_property("uart", "reg").unwrap();
+        let uart_regs = dtb.find_regs("uart").unwrap();
+        assert_eq!(uart_regs, (0x10000000, 0x100));
     }
 }

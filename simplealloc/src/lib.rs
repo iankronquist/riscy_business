@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::cast_ptr_alignment)]
 
 extern crate spin;
 use core::alloc::{GlobalAlloc, Layout};
@@ -15,7 +16,7 @@ struct AllocationHeader {
 // delight and didn't find anything.
 // 'by' must be power of two
 fn round_up(mut roundee: usize, by: usize) -> usize {
-    assert!((by & by-1) == 0);
+    assert!((by & (by-1)) == 0);
     if roundee == 0 || (roundee & (by-1)) != 0 {
         roundee -= roundee & (by-1);
         roundee += by;

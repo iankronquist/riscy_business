@@ -1,4 +1,4 @@
-use super::constants::{PAGE_SIZE, MB};
+use super::constants::{MB, PAGE_SIZE};
 extern "C" {
     static mut __kernel_end: u8;
 }
@@ -23,16 +23,9 @@ fn round_next(start: usize, alignment: usize) -> usize {
 }
 
 pub fn get_base() -> usize {
-    unsafe {
-        round_next(
-            &mut __kernel_end as *mut u8 as usize,
-            PAGE_SIZE,
-        )
-    }
+    unsafe { round_next(&mut __kernel_end as *mut u8 as usize, PAGE_SIZE) }
 }
 
 pub fn get_size() -> usize {
     16 * MB
 }
-
-

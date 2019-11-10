@@ -20,7 +20,9 @@ pub fn panic(info: &PanicInfo) -> ! {
     }
 
     loop {
-        //unsafe { //asm!("cli; hlt;"); halt(); }
+        unsafe {
+            asm!("csrw mie, zero; wfi;"::::"volatile");
+        }
     }
 }
 
@@ -32,4 +34,10 @@ pub fn abort() -> ! {
 #[alloc_error_handler]
 fn alloc_error_handler(_: core::alloc::Layout) -> ! {
     panic!("OOM!");
+}
+
+#[lang = "eh_personality"]
+#[no_mangle]
+pub extern "C" fn eh_personality() {
+    //error!("PANIC: eh_personality\n");
 }
