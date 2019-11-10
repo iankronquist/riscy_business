@@ -21,7 +21,11 @@ pub fn hexdump(writer: &mut dyn Write, mem: &[u8]) {
 
 #[inline(never)]
 pub fn breakpoint() {
+    // Not sure about this, this is for debugging, and this causes a trap which
+    // can mean trouble.
+    /*
     unsafe {
         asm!("ebreak"::::"volatile");
     }
+    */
 }

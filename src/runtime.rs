@@ -38,6 +38,4 @@ fn alloc_error_handler(_: core::alloc::Layout) -> ! {
 
 #[lang = "eh_personality"]
 #[no_mangle]
-pub extern "C" fn eh_personality() {
-    //error!("PANIC: eh_personality\n");
-}
+pub extern "C" fn eh_personality() {}
