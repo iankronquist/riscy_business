@@ -55,7 +55,7 @@ pub extern "C" fn rmain(_: usize, device_tree_addr: usize) {
     let heap_size = heap::get_size();
     #[cfg(not(test))]
     GLOBAL.init(heap_base, heap_size);
-    //device_tree.dump();
+    device_tree.dump();
     let v = vec![1,2,3];
 
     log!("Hello riscv world {:?}", v);
