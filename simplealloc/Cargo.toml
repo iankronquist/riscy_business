@@ -1,19 +1,10 @@
 [package]
-name = "overhyped"
+name = "simplealloc"
 version = "0.1.0"
 authors = ["Ian Kronquist <iankronquist@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-crate-type = ["staticlib"]
-
 [dependencies]
-simplealloc = { path = "simplealloc" }
-
-#[features]
-#platform=["rv64"]
-
-#[profile.dev]
-#opt-level = 2
+spin = { version = "0.5.0" }

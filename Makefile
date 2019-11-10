@@ -19,6 +19,7 @@ CPP=cpp
 
 ASFLAGS=-g --noexecstack
 ARCHASFLAGS=-march=rv64ima
+LDFLAGS=-z max-page-size=0x1000 --gc-sections
 
 QEMU=qemu-system-riscv64
 QEMU_MACH=virt

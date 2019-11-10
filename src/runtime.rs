@@ -28,3 +28,8 @@ pub fn panic(info: &PanicInfo) -> ! {
 pub fn abort() -> ! {
     panic!("Abort!");
 }
+
+#[alloc_error_handler]
+fn alloc_error_handler(_: core::alloc::Layout) -> ! {
+    panic!("OOM!");
+}

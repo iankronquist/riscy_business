@@ -32,6 +32,7 @@ pub extern "C" fn rtrap(
     mstatus: usize,
     trapctx: *mut TrapContext,
 ) -> usize {
+    /*
     log!("Trap mcause: {:x} ", mcause);
     log!("Trap mepc: {:x} ", mepc);
     log!("Trap mhartid: {:x} ", mhartid);
@@ -42,5 +43,6 @@ pub extern "C" fn rtrap(
     let mtime = 0x0200_bff8 as *const u64;
     let time = unsafe { mtime.read_volatile() };
     log!("Trap time: {:x} ", time);
+    */
     mepc
 }

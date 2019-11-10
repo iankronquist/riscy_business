@@ -3,6 +3,18 @@
 #![feature(asm)]
 #![feature(const_fn)]
 #![feature(panic_info_message)]
+#![feature(alloc_error_handler)]
+
+#[macro_use]
+extern crate alloc;
+extern crate simplealloc;
+use alloc::vec;
+
+
+#[cfg(not(test))]
+#[global_allocator]
+static GLOBAL: simplealloc::GlobalAllocator = simplealloc::GlobalAllocator::new();
+
 
 mod mmio;
 mod mutex;
@@ -13,6 +25,8 @@ mod debug;
 mod device_tree;
 mod trap;
 mod uart;
+mod heap;
+mod constants;
 use core::slice;
 use device_tree::DeviceTree;
 
@@ -35,9 +49,16 @@ pub extern "C" fn rmain(_: usize, device_tree_addr: usize) {
         uart::UART.update(uart_mem);
         (*log::LOGGER.lock()).set_sink(&mut uart::UART);
     }
-    //device_tree.dump();
 
-    log!("Hello riscv world");
+    log!("...");
+    let heap_base = heap::get_base() as *mut u8;
+    let heap_size = heap::get_size();
+    #[cfg(not(test))]
+    GLOBAL.init(heap_base, heap_size);
+    //device_tree.dump();
+    let v = vec![1,2,3];
+
+    log!("Hello riscv world {:?}", v);
 }
 
 #[cfg(test)]

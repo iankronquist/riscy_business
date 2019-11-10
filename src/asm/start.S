@@ -57,7 +57,8 @@ _start:
     csrw mstatus, t0
 
     /* Enable machine interrupts */
-    li t0, (MIE_MTIE | MIE_MEIE | MIE_MSIE)
+    li t0, (MIE_MEIE | MIE_MSIE)
+    /*li t0, (MIE_MTIE | MIE_MEIE | MIE_MSIE)*/
     csrw mie, t0
 
     /* Set machine exception PC to rmain so we will return to it */
