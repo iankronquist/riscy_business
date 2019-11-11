@@ -15,17 +15,20 @@ use alloc::vec;
 #[global_allocator]
 static GLOBAL: simplealloc::GlobalAllocator = simplealloc::GlobalAllocator::new();
 
+
+#[macro_use]
+mod log;
+mod uart;
+use uart as logger;
+
 mod mmio;
 mod mutex;
 mod runtime;
-#[macro_use]
-mod log;
 mod constants;
 mod debug;
 mod device_tree;
 mod heap;
 mod trap;
-mod uart;
 use core::slice;
 use device_tree::DeviceTree;
 
@@ -43,13 +46,8 @@ pub extern "C" fn rmain(_: usize, device_tree_addr: usize) {
     //    .find_regs("uart")
     //    .expect("uart not found in device tree");
     let uart_mem = unsafe { slice::from_raw_parts_mut(uart_base as *mut u8, uart_size) };
-    // FIXME these next bits shouldn't be unsafe. Figure out how to make them safe with RefCell & Mutex.
-    unsafe {
-        uart::UART.update(uart_mem);
-        (*log::LOGGER.lock()).set_sink(&mut uart::UART);
-    }
+    logger::LOGGER.lock().init(uart_mem);
 
-    log!("...");
     let heap_base = heap::get_base() as *mut u8;
     let heap_size = heap::get_size();
     #[cfg(not(test))]

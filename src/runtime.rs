@@ -1,5 +1,6 @@
 #![cfg(not(test))]
 use crate::log;
+use crate::logger;
 use core::panic::PanicInfo;
 use core::sync::atomic;
 
@@ -12,7 +13,7 @@ static HAVE_PANICKED: atomic::AtomicBool = atomic::AtomicBool::new(false);
 pub fn panic(info: &PanicInfo) -> ! {
     if !HAVE_PANICKED.compare_and_swap(false, true, atomic::Ordering::SeqCst) {
         unsafe {
-            log::LOGGER.bust_lock();
+            logger::LOGGER.bust_lock();
         }
 
         log!("PANIC: {:#?} {:#?}\n", info.message(), info.location());
@@ -21,7 +22,7 @@ pub fn panic(info: &PanicInfo) -> ! {
 
     loop {
         unsafe {
-            asm!("csrw mie, zero; wfi;"::::"volatile");
+            asm!("csrw sie, zero; wfi;"::::"volatile");
         }
     }
 }

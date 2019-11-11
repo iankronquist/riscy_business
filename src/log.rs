@@ -1,8 +1,12 @@
+/*
 use crate::debug;
 use crate::mutex::Mutex;
 use crate::uart;
 use core::fmt::{Arguments, Error, Write};
+*/
 
+
+/*
 pub struct Logger<'a> {
     device: Option<&'a mut dyn Write>,
 }
@@ -27,21 +31,22 @@ impl<'a> Logger<'a> {
 }
 
 pub static LOGGER: Mutex<Logger<'static>> = Mutex::new(Logger::new());
+*/
 
 #[macro_export]
 macro_rules! log {
     ($fmt:tt, $($arg:tt)*) => {
         {
-            use log;
-            let mut ul = log::LOGGER.lock();
-            ul.log(format_args!($fmt, $($arg)*));
+            use core::fmt::Write;
+            use crate::logger;
+            writeln!(&mut *logger::LOGGER.lock(), "{}", format_args!($fmt, $($arg)*));
         }
     };
     ($fmt:tt) => {
         {
-            use log;
-            let mut ul = log::LOGGER.lock();
-            ul.log(format_args!($fmt));
+            use core::fmt::Write;
+            use crate::logger;
+            writeln!(&mut *logger::LOGGER.lock(), "{}", format_args!($fmt));
         }
     };
 }
@@ -49,8 +54,9 @@ macro_rules! log {
 #[macro_export]
 macro_rules! hexdump {
     ($bytes:expr) => {{
-        use log;
-        let mut ul = log::LOGGER.lock();
-        ul.hexdump($bytes);
+        use core::fmt::Write;
+        use crate::logger;
+        use crate::debug;
+        debug::hexdump(&mut *logger::LOGGER.lock(), $bytes);
     }};
 }
