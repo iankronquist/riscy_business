@@ -9,6 +9,7 @@
 #[macro_use]
 extern crate alloc;
 extern crate simplealloc;
+extern crate simplespin as mutex;
 use alloc::vec;
 
 #[cfg(not(test))]
@@ -22,7 +23,6 @@ mod uart;
 use uart as logger;
 
 mod mmio;
-mod mutex;
 mod runtime;
 mod constants;
 mod debug;

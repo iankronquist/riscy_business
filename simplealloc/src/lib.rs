@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(clippy::cast_ptr_alignment)]
 
-extern crate spin;
+extern crate simplespin as spin;
 use core::alloc::{GlobalAlloc, Layout};
 
 

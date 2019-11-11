@@ -1,3 +1,4 @@
+#![no_std]
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -5,6 +6,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 // FIXME: The Rustonomicon has a passage about poisoning data during a panic
 // unwind...
 
+#[derive(Default)]
 pub struct Mutex<T> {
     lock: AtomicBool,
     item: UnsafeCell<T>,
