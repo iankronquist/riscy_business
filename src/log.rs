@@ -1,36 +1,6 @@
-/*
-use crate::debug;
-use crate::mutex::Mutex;
-use crate::uart;
-use core::fmt::{Arguments, Error, Write};
-*/
-
-/*
-pub struct Logger<'a> {
-    device: Option<&'a mut dyn Write>,
-}
-
-impl<'a> Logger<'a> {
-    pub const fn new() -> Self {
-        Self { device: None }
-    }
-    pub fn set_sink(&mut self, w: &'a mut dyn Write) {
-        self.device = Some(w);
-    }
-    pub fn log(&mut self, fmt: Arguments) {
-        if let Some(writer) = &mut self.device {
-            let _ = writeln!(writer, "{}", fmt);
-        }
-    }
-    pub fn hexdump(&mut self, mem: &[u8]) {
-        if let Some(writer) = &mut self.device {
-            debug::hexdump(writer, mem);
-        }
-    }
-}
-
-pub static LOGGER: Mutex<Logger<'static>> = Mutex::new(Logger::new());
-*/
+/// Macros for logging.
+/// These are independent of the logger implementation, although we expect
+/// logger implementations to be writers wrapped in locks.
 
 #[macro_export]
 macro_rules! log {

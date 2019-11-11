@@ -1,3 +1,4 @@
+/// Constants and utility functions used to set up the heap.
 use super::constants::{MB, PAGE_SIZE};
 extern "C" {
     static mut __kernel_end: u8;

@@ -31,19 +31,21 @@ mod trap;
 use core::slice;
 use device_tree::DeviceTree;
 
+/// Rust entry point called by the init hardware thread after we enter
+/// supervisor mode.
+/// * `_hardid` - The current hardware thread id.
+/// * `device_tree_addr` - The address of the device tree passed to the kernel.
+/// The kernel will use the device tree to configure itself.
 #[no_mangle]
-pub extern "C" fn rmain(_: usize, device_tree_addr: usize) {
+pub extern "C" fn rmain(_hartid: usize, device_tree_addr: usize) {
     let mut device_tree = DeviceTree::empty();
     unsafe {
         device_tree = DeviceTree::from_address(device_tree_addr).expect("Invalid device tree");
     }
-    let uart_base = device_tree
-        .find("uart")
+    // FIXME: I'm not a fan of this API, it is very property specific.
+    let (uart_base, uart_size) = device_tree
+        .find_regs("uart")
         .expect("uart not found in device tree");
-    let uart_size = 0x100;
-    //let (uart_base, uart_size) = device_tree
-    //    .find_regs("uart")
-    //    .expect("uart not found in device tree");
     let uart_mem = unsafe { slice::from_raw_parts_mut(uart_base as *mut u8, uart_size) };
     logger::LOGGER.lock().init(uart_mem);
 
@@ -55,12 +57,4 @@ pub extern "C" fn rmain(_: usize, device_tree_addr: usize) {
     let v = vec![1, 2, 3];
 
     log!("Hello riscv world {:?}", v);
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
 }

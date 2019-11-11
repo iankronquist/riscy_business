@@ -26,14 +26,14 @@
 .section .text.init
 .global _start
 _start:
+    /* mhartid is in a0. Device tree pointer is in a1. Do not disturb them */
 #if MACHINE_MODE_START
     /* Disable machine interrupts */
     csrw mie, zero
+    /* Delegate all exceptions and interrupts to supervisor mode */
     li t0, ~0
     csrw mideleg, t0
     csrw medeleg, t0
-    /* Device tree pointer is in a1. mhartid is in a0. Do not disturb them */
-    /* need to wait for an IPI */
     /* We will return to supervisor mode */
     li t0, MPP_SUPERVISOR
     csrw mstatus, t0
@@ -47,8 +47,10 @@ _start:
 .lower_to_smode:
     /* mhartid is in a0. Park non-init cores */
     bnez    a0, hang
+
     /* SATP should be zero (like CR3 in x86), but let's make sure */
     csrw    satp, zero
+
     /* Zero BSS */
     la t0, __bss_start
     la t1, __bss_end
@@ -57,9 +59,11 @@ _start:
     sd zero, (t0)
     addi t0, t0, 8
     bltu t0, t1, 1b
+
 2:
     /* Set up stack */
     la sp, _stack_top
+
     /* Set global pointer to the beginning of data/rodata */
     la gp, _global_pointer
 
@@ -67,6 +71,7 @@ _start:
     la t0, BOOTSTRAP_CORE_TRAP_CONTEXT
     csrw sscratch, t0
 
+    /* Set trap stack in the trap context */
     la t1, _trap_stack_top
     sd t1, (32*8)(t0)
 
@@ -74,17 +79,14 @@ _start:
     la t0, _trap
     csrw stvec, t0
 
-    /* S/MPIE is whether interrupts were enabled prior to the last trap in M
+    /* SPIE is whether interrupts were enabled prior to the last trap in S
     mode. */
-    /* S/MIE is machine interrupts enabled */
-    /* S/MPP is the previous privilege level */
-    /* li t0, MPP_MACHINE | MPIE_YES | MIE_YES */
+    /* SIE is machine interrupts enabled */
+    /* SPP is the previous privilege level */
     li t0, SPP_SUPERVISOR | SPIE_YES | SIE_YES
     csrw sstatus, t0
 
     /* Enable machine interrupts */
-    /* li t0, (MIE_MEIE | MIE_MSIE) */
-    /*li t0, (MIE_MTIE | MIE_MEIE | MIE_MSIE)*/
     li t0, (SIE_STIE | SIE_SEIE | SIE_SSIE)
     csrw sie, t0
 
@@ -94,7 +96,6 @@ _start:
     csrw sepc, t1
     /* Return into supervisor mode code */
     sret
-
 
 hang:
     wfi

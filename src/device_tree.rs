@@ -2,7 +2,6 @@ use crate::log;
 use core::convert::TryFrom;
 use core::convert::TryInto;
 use core::mem;
-// Based on https://github.com/devicetree-org/devicetree-specification/releases/tag/v0.3-rc2
 
 const DEVICE_TREE_MAGIC: u32 = (0xd00d_feedu32).to_be();
 const DEVICE_TREE_COMPAT_VERSION: u32 = (16u32).to_be();
@@ -43,14 +42,23 @@ pub struct DeviceTreeMemoryReservationEntry {
     size: u64,
 }
 
+/// Device tree blob parser.
+/// Based on the v0.3-rc2 specification found here:
+/// https://github.com/devicetree-org/devicetree-specification/releases/tag/v0.3-rc2
 pub struct DeviceTree<'a> {
     data: &'a mut [u8],
 }
 
 impl<'a> DeviceTree<'a> {
+    /// Creates a new device tree blob with no data.
     pub fn empty() -> Self {
         Self { data: &mut [] }
     }
+    /// Creates a device tree blob at the given address.
+    /// The blob's size and metadata is created by dereferencing the given
+    /// address and treating it as a header, so this method is unsafe.
+    /// Returns a DeviceTree object if the magic, version, and size information
+    /// is all valid. Otherwise returns None.
     pub unsafe fn from_address(addr: usize) -> Option<Self> {
         let dtb = addr as *mut DeviceTreeHeader;
         if (*dtb).magic != DEVICE_TREE_MAGIC {
@@ -92,6 +100,7 @@ impl<'a> DeviceTree<'a> {
         })
     }
 
+    /// Dump the device tree to the debug log.
     pub fn dump(&self) {
         hexdump!(self.data);
         let iter = self.walk();
@@ -122,6 +131,8 @@ impl<'a> DeviceTree<'a> {
         }
     }
 
+    /// Find the first property matching the first object with the given
+    /// property and name.
     pub fn find_property(&self, name: &str, prop: &str) -> Option<DeviceTreeStructure> {
         enum SearchState {
             Node,
@@ -179,6 +190,9 @@ impl<'a> DeviceTree<'a> {
         None
     }
 
+    /// Given the name 'X', finds the item `X@HEX_ADDRESS` and returns the hex
+    /// address as an Option<usize>. If the name is not found or does not have
+    /// that form, return None.
     pub fn find(&self, name: &str) -> Option<usize> {
         for n in self.walk() {
             match n {
@@ -198,6 +212,7 @@ impl<'a> DeviceTree<'a> {
         None
     }
 
+    /// Returns a copy of the device tree header.
     fn header(&self) -> DeviceTreeHeader {
         assert!(self.data.len() > core::mem::size_of::<DeviceTreeHeader>());
         let mut hdr: DeviceTreeHeader;
@@ -209,6 +224,8 @@ impl<'a> DeviceTree<'a> {
         hdr
     }
 
+    /// Returns an iterator which will walk the DeviceTree in depth first
+    /// order.
     pub fn walk(&self) -> DeviceTreeStructureIterator {
         assert!(core::mem::size_of::<usize>() >= core::mem::size_of::<u32>());
         let hdr = self.header();
@@ -229,12 +246,23 @@ impl<'a> DeviceTree<'a> {
     }
 }
 
+/// Iterates over the contents of the DeviceTree and performs minimal
+/// validation.
 pub struct DeviceTreeStructureIterator<'a> {
     index: usize,
     depth: isize,
     strings: &'a [u8],
     bytes: &'a [u8],
 }
+
+/// Elements of the device tree structure and their values.
+#[derive(Debug)]
+pub enum DeviceTreeStructure<'a> {
+    NodeBegin(&'a str),
+    NodeEnd,
+    Property(&'a [u8], &'a str),
+}
+
 
 impl<'a> DeviceTreeStructureIterator<'a> {
     fn consume_u32(&mut self) -> Option<u32> {
@@ -323,6 +351,8 @@ impl<'a> Iterator for DeviceTreeStructureIterator<'a> {
     }
 }
 
+/// Given a byte slice, return C-style null terminated utf8 str reference.
+/// This is useful for parsing out property and node names.
 fn str_from_bytes(bytes: &'_ [u8]) -> Option<&'_ str> {
     let mut len = 0;
     while len < bytes.len() {
@@ -336,13 +366,6 @@ fn str_from_bytes(bytes: &'_ [u8]) -> Option<&'_ str> {
     }
     // The array is empty or we fell off the end without finding a null byte.
     None
-}
-
-#[derive(Debug)]
-pub enum DeviceTreeStructure<'a> {
-    NodeEnd,
-    NodeBegin(&'a str),
-    Property(&'a [u8], &'a str),
 }
 
 #[cfg(test)]
