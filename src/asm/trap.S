@@ -7,9 +7,9 @@
 .align 4
 _trap:
     /* I presume interrupts are off? */
-    /* swap t6, mscratch */
-    /* mscratch holds trap state context */
-    csrrw t6, mscratch, t6
+    /* swap t6, sscratch */
+    /* sscratch holds trap state context */
+    csrrw t6, sscratch, t6
 
     sd x0, (0*REG_SIZE)(t6)
     sd x1, (1*REG_SIZE)(t6)
@@ -43,29 +43,31 @@ _trap:
     sd x29, (29*REG_SIZE)(t6)
     sd x30, (30*REG_SIZE)(t6)
 
-    /* mscratch has the contents of the previous context's t6, swap it back
+    /* sscratch has the contents of the previous context's t6, swap it back
      * into t6 and save it */
     mv t5, t6
-    csrr t6, mscratch
+    csrr t6, sscratch
     sd x31, (31*REG_SIZE)(t5)
-    /* Restore trap context into mscratch */
-    csrw mscratch, t5
+    /* Restore trap context into sscratch */
+    csrw sscratch, t5
 
-    csrr a0, mepc
-    csrr a1, mtval
-    csrr a2, mcause
-    csrr a3, mhartid
-    csrr a4, mstatus
+    csrr a0, sepc
+    csrr a1, stval
+    csrr a2, scause
+    /* csrr a3, shartid */
+    /* FIXME: mhartid went away when we became smode */
+    xor a3, a3, a3
+    csrr a4, sstatus
     mv a5, t5 /* trap context */
     /* We are now on a trusted stack */
     ld sp, (32*REG_SIZE)(t5)
     call rtrap
 
     /* machine exception pc gets return value of rtrap */
-    csrw mepc, a0
+    csrw sepc, a0
 
     /* t6 gets trap context */
-    csrr t6, mscratch
+    csrr t6, sscratch
 
     ld x31, (31*REG_SIZE)(t6)
     ld x30, (30*REG_SIZE)(t6)
@@ -100,4 +102,4 @@ _trap:
     ld x1, (1*REG_SIZE)(t6)
     ld x0, (0*REG_SIZE)(t6)
     /* Leap! */
-    mret
+    sret

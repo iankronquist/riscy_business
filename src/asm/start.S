@@ -1,27 +1,53 @@
 #define MPP_MACHINE (0b11 << 11)
+#define MPP_SUPERVISOR (0b01 << 11)
+#define SPP_SUPERVISOR (1 << 8)
 #define MPIE_YES (1 << 7)
+#define SPIE_YES (1 << 5)
 #define MIE_YES (1 << 3)
+#define SIE_YES (1 << 1)
 
-/* Machine timer interrupt enable */
-#define MIE_MTIE (1 << 7)
 /* Machine external interrupt enable */
 #define MIE_MEIE (1 << 11)
+/* Machine timer interrupt enable */
+#define MIE_MTIE (1 << 7)
 /* Machine software interrupt enable */
 #define MIE_MSIE (1 << 3)
+
+/* Machine external interrupt enable */
+#define SIE_SEIE (1 << 9)
+/* Supervisor timer interrupt enable */
+#define SIE_STIE (1 << 5)
+/* Machine software interrupt enable */
+#define SIE_SSIE (1 << 1)
+
+#define MACHINE_MODE_START 1
 
 #define PAGE_SIZE 0x1000
 .section .text.init
 .global _start
 _start:
+#if MACHINE_MODE_START
     /* Disable machine interrupts */
     csrw mie, zero
-    /* Device tree pointer is in a1. Something else is in a0. Do not disturb
-    them */
-    /* Any hardware threads (hart) that are not bootstrapping */
+    li t0, ~0
+    csrw mideleg, t0
+    csrw medeleg, t0
+    /* Device tree pointer is in a1. mhartid is in a0. Do not disturb them */
     /* need to wait for an IPI */
-    csrr    t0, mhartid
-    bnez    t0, hang
-    /* SATP should be zero, but let's make sure */
+    /* We will return to supervisor mode */
+    li t0, MPP_SUPERVISOR
+    csrw mstatus, t0
+    la t0, .lower_to_smode
+    csrw mepc, t0
+    mret
+    /* we should never get here, but if we do, hang */
+    j hang
+#endif
+
+.lower_to_smode:
+    /* mhartid is in a0. Park non-init cores */
+    bnez    a0, hang
+    /* SATP should be zero (like CR3 in x86), but let's make sure */
     csrw    satp, zero
     /* Zero BSS */
     la t0, __bss_start
@@ -39,34 +65,35 @@ _start:
 
     /* Load trap context into mscratch */
     la t0, BOOTSTRAP_CORE_TRAP_CONTEXT
-    csrw mscratch, t0
+    csrw sscratch, t0
 
     la t1, _trap_stack_top
     sd t1, (32*8)(t0)
 
     /* Load trap vector into mtvec */
     la t0, _trap
-    csrw mtvec, t0
+    csrw stvec, t0
 
-    /* MPIE is whether interrupts were enabled prior to the last trap in M
+    /* S/MPIE is whether interrupts were enabled prior to the last trap in M
     mode. */
-    /* MIE is machine interrupts enabled */
-    /* MPP is the previous privilege level */
-    li t0, MPP_MACHINE | MPIE_YES | MIE_YES
-    li t0, MPP_MACHINE
-    csrw mstatus, t0
+    /* S/MIE is machine interrupts enabled */
+    /* S/MPP is the previous privilege level */
+    /* li t0, MPP_MACHINE | MPIE_YES | MIE_YES */
+    li t0, SPP_SUPERVISOR | SPIE_YES | SIE_YES
+    csrw sstatus, t0
 
     /* Enable machine interrupts */
-    li t0, (MIE_MEIE | MIE_MSIE)
+    /* li t0, (MIE_MEIE | MIE_MSIE) */
     /*li t0, (MIE_MTIE | MIE_MEIE | MIE_MSIE)*/
-    csrw mie, t0
+    li t0, (SIE_STIE | SIE_SEIE | SIE_SSIE)
+    csrw sie, t0
 
     /* Set machine exception PC to rmain so we will return to it */
     /* This is the equivalent of the elr */
     la t1, rmain
-    csrw mepc, t1
-    /* Return into machine mode code */
-    mret
+    csrw sepc, t1
+    /* Return into supervisor mode code */
+    sret
 
 
 hang:
