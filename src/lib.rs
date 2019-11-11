@@ -16,18 +16,17 @@ use alloc::vec;
 #[global_allocator]
 static GLOBAL: simplealloc::GlobalAllocator = simplealloc::GlobalAllocator::new();
 
-
 #[macro_use]
 mod log;
 mod uart;
 use uart as logger;
 
-mod mmio;
-mod runtime;
 mod constants;
 mod debug;
 mod device_tree;
 mod heap;
+mod mmio;
+mod runtime;
 mod trap;
 use core::slice;
 use device_tree::DeviceTree;

@@ -31,6 +31,11 @@ impl<T> Mutex<T> {
         }
     }
 
+    /// Busts the lock
+    /// # Safety
+    /// Lock busting is obviously unsafe. It's potentially useful in last-ditch
+    /// panic scenarios, but even then you can't be sure that your thread was the
+    /// one holding the lock when the panic occurred.
     pub unsafe fn bust_lock(&self) {
         self.lock.store(false, Ordering::SeqCst);
     }

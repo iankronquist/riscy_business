@@ -5,7 +5,6 @@ use crate::uart;
 use core::fmt::{Arguments, Error, Write};
 */
 
-
 /*
 pub struct Logger<'a> {
     device: Option<&'a mut dyn Write>,
@@ -54,9 +53,9 @@ macro_rules! log {
 #[macro_export]
 macro_rules! hexdump {
     ($bytes:expr) => {{
-        use core::fmt::Write;
-        use crate::logger;
         use crate::debug;
+        use crate::logger;
+        use core::fmt::Write;
         debug::hexdump(&mut *logger::LOGGER.lock(), $bytes);
     }};
 }

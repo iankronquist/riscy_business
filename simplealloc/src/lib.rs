@@ -4,8 +4,6 @@
 extern crate simplespin as spin;
 use core::alloc::{GlobalAlloc, Layout};
 
-
-
 #[derive(Debug)]
 struct AllocationHeader {
     next_free: *mut Self,
@@ -16,19 +14,17 @@ struct AllocationHeader {
 // delight and didn't find anything.
 // 'by' must be power of two
 fn round_up(mut roundee: usize, by: usize) -> usize {
-    assert!((by & (by-1)) == 0);
-    if roundee == 0 || (roundee & (by-1)) != 0 {
-        roundee -= roundee & (by-1);
+    assert!((by & (by - 1)) == 0);
+    if roundee == 0 || (roundee & (by - 1)) != 0 {
+        roundee -= roundee & (by - 1);
         roundee += by;
     }
     roundee
 }
 
-fn is_ptr_aligned_by(ptr :*mut u8, alignment: usize) -> bool {
+fn is_ptr_aligned_by(ptr: *mut u8, alignment: usize) -> bool {
     (ptr as usize & (alignment - 1)) == 0
 }
-
-
 
 const FREE_LIST_END_SENTINEL: *mut AllocationHeader = 1 as *mut AllocationHeader;
 const ALLOCATION_ROUNDING_FACTOR: usize = core::mem::size_of::<*const u8>();
@@ -36,7 +32,7 @@ const SPLIT_FUDGE_FACTOR: usize = core::mem::size_of::<AllocationHeader>();
 
 impl AllocationHeader {
     unsafe fn from_ptr(ptr: *mut u8) -> *mut Self {
-        (ptr  as *mut Self).offset(-1) as *mut Self
+        (ptr as *mut Self).offset(-1) as *mut Self
     }
     unsafe fn allocation(&mut self) -> *mut u8 {
         (self as *mut Self).offset(1) as *mut u8
@@ -64,7 +60,10 @@ impl AllocationHeader {
         assert_eq!(self.next(), splitee);
         assert_eq!((*splitee).next(), original_next);
 
-        assert_eq!(self.len + (*splitee).len + core::mem::size_of::<AllocationHeader>(), original_len);
+        assert_eq!(
+            self.len + (*splitee).len + core::mem::size_of::<AllocationHeader>(),
+            original_len
+        );
 
         assert!(!self.is_free());
         assert!((*splitee).is_free());
@@ -89,7 +88,6 @@ impl AllocationHeader {
         self.next_free = core::ptr::null_mut();
     }
 }
-
 
 struct Allocator {
     arena_start: *mut u8,
@@ -174,7 +172,8 @@ impl Allocator {
         assert!(size >= request);
         assert!(!self.free_list.is_null());
         let mut cur = self.free_list;
-        let mut prev: *mut *mut AllocationHeader = &mut self.free_list as *mut *mut AllocationHeader;
+        let mut prev: *mut *mut AllocationHeader =
+            &mut self.free_list as *mut *mut AllocationHeader;
         assert!(!cur.is_null());
         while cur != FREE_LIST_END_SENTINEL {
             if (*cur).len >= size {
@@ -202,7 +201,7 @@ impl Allocator {
 
     unsafe fn dealloc(&mut self, ptr: *mut u8) {
         if ptr.is_null() {
-            return
+            return;
         }
         let header = AllocationHeader::from_ptr(ptr);
         loop {
@@ -225,7 +224,11 @@ impl Allocator {
 
 impl Default for Allocator {
     fn default() -> Self {
-        Self { arena_start: core::ptr::null_mut(), arena_len: 0, free_list: FREE_LIST_END_SENTINEL }
+        Self {
+            arena_start: core::ptr::null_mut(),
+            arena_len: 0,
+            free_list: FREE_LIST_END_SENTINEL,
+        }
     }
 }
 
@@ -237,9 +240,14 @@ pub struct GlobalAllocator {
 unsafe impl Sync for GlobalAllocator {}
 
 impl GlobalAllocator {
-
     pub const fn new() -> Self {
-        GlobalAllocator { allocator: spin::Mutex::new(Allocator { arena_start: core::ptr::null_mut(), arena_len: 0, free_list: FREE_LIST_END_SENTINEL }) }
+        GlobalAllocator {
+            allocator: spin::Mutex::new(Allocator {
+                arena_start: core::ptr::null_mut(),
+                arena_len: 0,
+                free_list: FREE_LIST_END_SENTINEL,
+            }),
+        }
     }
 
     pub fn init(&self, base: *mut u8, len: usize) {
@@ -251,7 +259,10 @@ unsafe impl GlobalAlloc for GlobalAllocator {
         if layout.align() <= ALLOCATION_ROUNDING_FACTOR {
             (*self).allocator.lock().alloc(layout.size())
         } else {
-            (*self).allocator.lock().alloc_aligned(layout.size(), layout.align())
+            (*self)
+                .allocator
+                .lock()
+                .alloc_aligned(layout.size(), layout.align())
         }
     }
 
@@ -264,23 +275,27 @@ unsafe impl GlobalAlloc for GlobalAllocator {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn empty_heap_alloc() {
         let mut heap: Allocator = Default::default();
-        unsafe { assert_eq!(heap.alloc(1), core::ptr::null_mut()); }
+        unsafe {
+            assert_eq!(heap.alloc(1), core::ptr::null_mut());
+        }
     }
     #[test]
     fn test_free_null() {
         let mut heap: Allocator = Default::default();
-        unsafe { heap.dealloc(core::ptr::null_mut()); }
+        unsafe {
+            heap.dealloc(core::ptr::null_mut());
+        }
     }
     #[test]
     fn test_simple_99_alloc_frees() {
-        let mut arena = [0u8; 100 * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>())];
+        let mut arena =
+            [0u8; 100 * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>())];
         let mut heap: Allocator = Default::default();
         heap.init(arena.as_mut_ptr(), arena.len());
         let mut allocd = [core::ptr::null_mut() as *mut u8; 100];
@@ -300,7 +315,8 @@ mod tests {
     #[test]
     fn test_simple_100_alloc_frees() {
         // Magic +8 because of split fudge factor
-        let mut arena = [0u8; 8 + 100 * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>())];
+        let mut arena = [0u8; 8 + 100
+            * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>())];
         let mut heap: Allocator = Default::default();
         heap.init(arena.as_mut_ptr(), arena.len());
         let mut allocd = [core::ptr::null_mut() as *mut u8; 100];
@@ -316,8 +332,6 @@ mod tests {
             unsafe { heap.dealloc(*ptr) };
         }
     }
-
-
 
     #[test]
     fn allocation_header_basic() {
@@ -336,7 +350,10 @@ mod tests {
             },
         ];
         unsafe {
-            assert_eq!(headers[0].allocation(), &mut headers[1] as *mut AllocationHeader as *mut u8);
+            assert_eq!(
+                headers[0].allocation(),
+                &mut headers[1] as *mut AllocationHeader as *mut u8
+            );
             assert_eq!(headers[0].next(), &mut headers[2] as *mut AllocationHeader);
             assert!(!headers[0].is_splittable(1));
         }
@@ -372,8 +389,9 @@ mod tests {
 
     #[test]
     fn random_allocations() {
-        use  core::arch::x86_64;
-        const ARENA_BYTES: usize = 1000 * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>());
+        use core::arch::x86_64;
+        const ARENA_BYTES: usize =
+            1000 * (ALLOCATION_ROUNDING_FACTOR + core::mem::size_of::<AllocationHeader>());
         let mut arena = [0u8; ARENA_BYTES];
         let mut heap: Allocator = Default::default();
         heap.init(arena.as_mut_ptr(), arena.len());
@@ -386,10 +404,14 @@ mod tests {
         for _ in 0..MAX_ALLOCATIONS {
             //let i = seek_next_null()
             let mut this_time = 3u64;
-            unsafe { x86_64::_rdrand64_step(&mut this_time); } // ignore failure return value -- radically unlikely in testing.
+            unsafe {
+                x86_64::_rdrand64_step(&mut this_time);
+            } // ignore failure return value -- radically unlikely in testing.
             if total_allocs == allocations.len() || (this_time % CHANCE_RANDOM_FREE) == 0 {
                 if let Some(this_free) = seek_next_non_null(&allocations, last_allocation) {
-                    unsafe { heap.dealloc(allocations[this_free]); }
+                    unsafe {
+                        heap.dealloc(allocations[this_free]);
+                    }
                     allocations[this_free] = core::ptr::null_mut();
                     last_free = this_free;
                     total_allocs -= 1;
@@ -398,7 +420,9 @@ mod tests {
                 }
             }
             let mut alloc_size = 13u16;
-            unsafe { x86_64::_rdrand16_step(&mut alloc_size); } // ignore failure return value -- radically unlikely in testing.
+            unsafe {
+                x86_64::_rdrand16_step(&mut alloc_size);
+            } // ignore failure return value -- radically unlikely in testing.
             if let Some(this_alloc) = seek_next_null(&allocations, last_free) {
                 let ptr = unsafe { heap.alloc(alloc_size as usize) };
                 if !ptr.is_null() {
@@ -410,8 +434,6 @@ mod tests {
                 // Shouldn't happen, we should have freed on above.
                 assert_eq!(total_allocs, allocations.len());
             }
-
-
         }
     }
 
@@ -440,8 +462,10 @@ mod tests {
             assert!(headers[0].is_splittable(core::mem::size_of::<AllocationHeader>()));
             assert!(headers[1].is_splittable(0));
             assert!(!headers[1].is_splittable(1));
-            assert_eq!(headers[0].split_free(core::mem::size_of::<AllocationHeader>()),
-            &mut headers[2] as *mut AllocationHeader);
+            assert_eq!(
+                headers[0].split_free(core::mem::size_of::<AllocationHeader>()),
+                &mut headers[2] as *mut AllocationHeader
+            );
         }
     }
 
@@ -471,9 +495,11 @@ mod tests {
             },
         ];
         unsafe {
-            assert_eq!(AllocationHeader::from_ptr(headers[0].allocation()), &mut headers[0] as *mut AllocationHeader);
+            assert_eq!(
+                AllocationHeader::from_ptr(headers[0].allocation()),
+                &mut headers[0] as *mut AllocationHeader
+            );
         };
-
     }
 
     #[test]
@@ -489,10 +515,12 @@ mod tests {
             let ptr = unsafe { heap.alloc_aligned(32, alignment) };
             assert!(!ptr.is_null());
             assert!(is_ptr_aligned_by(ptr, alignment));
-            allocations[i-1] = ptr;
+            allocations[i - 1] = ptr;
         }
         for i in 6..MAX_ALIGN_INCLUSIVE {
-            unsafe { heap.dealloc_aligned(allocations[i-1]); }
+            unsafe {
+                heap.dealloc_aligned(allocations[i - 1]);
+            }
         }
     }
 }
