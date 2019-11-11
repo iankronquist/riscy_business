@@ -1,4 +1,4 @@
-NAME=overhyped
+NAME=riscy_business
 PLATFORM=rv64
 ARCH=riscv
 SUBARCH=64
