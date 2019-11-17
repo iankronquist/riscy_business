@@ -8,14 +8,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - id: component
-      uses: actions-rs/components-nightly@v1
-      with:
-        target: x86_64-unknown-linux-gnu
-        component: clippy
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: ${{ steps.component.outputs.toolchain }}
+        toolchain: nightly
+        target: riscv64gc-unknown-none-elf
+        components: clippy
         override: true
     - uses: actions-rs/cargo@v1
       with:
