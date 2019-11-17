@@ -21,12 +21,16 @@ mod log;
 mod uart;
 use uart as logger;
 
+
 mod constants;
 mod debug;
 mod device_tree;
 mod heap;
 mod mmio;
+mod mmu;
+mod phys;
 mod runtime;
+mod range;
 mod trap;
 use core::slice;
 use device_tree::DeviceTree;
