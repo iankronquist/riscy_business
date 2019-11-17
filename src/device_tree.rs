@@ -45,11 +45,11 @@ pub struct DeviceTreeMemoryReservationEntry {
 /// Device tree blob parser.
 /// Based on the v0.3-rc2 specification found here:
 /// https://github.com/devicetree-org/devicetree-specification/releases/tag/v0.3-rc2
-pub struct DeviceTree<'a> {
-    data: &'a mut [u8],
+pub struct DeviceTree<'dtb> {
+    data: &'dtb mut [u8],
 }
 
-impl<'a> DeviceTree<'a> {
+impl<'dtb> DeviceTree<'dtb> {
     /// Creates a new device tree blob with no data.
     pub fn empty() -> Self {
         Self { data: &mut [] }
@@ -111,29 +111,15 @@ impl<'a> DeviceTree<'a> {
     }
 
     pub fn find_regs(&self, name: &str) -> Option<(usize, usize)> {
-        match self.find_property(name, "reg")? {
-            DeviceTreeStructure::Property(slc, _) => {
-                let start = match slc[0..8].try_into() {
-                    Ok(arr) => u64::from_be_bytes(arr) as usize,
-                    Err(e) => {
-                        return None;
-                    }
-                };
-                let size = match slc[8..16].try_into() {
-                    Ok(arr) => u64::from_be_bytes(arr) as usize,
-                    _ => {
-                        return None;
-                    }
-                };
-                Some((start, size))
-            }
-            _ => None,
-        }
+        let prop = self.find_property(name, "reg")?;
+        let start = prop.read_usize(0)?;
+        let size = prop.read_usize(8)?;
+        Some((start, size))
     }
 
     /// Find the first property matching the first object with the given
     /// property and name.
-    pub fn find_property(&self, name: &str, prop: &str) -> Option<DeviceTreeStructure> {
+    pub fn find_property(&self, name: &str, prop: &str) -> Option<DeviceTreeNodeProperty> {
         enum SearchState {
             Node,
             Propery,
@@ -153,9 +139,9 @@ impl<'a> DeviceTree<'a> {
                     }
                 },
                 SearchState::Propery => match n {
-                    DeviceTreeStructure::Property(bytes, prop_name) => {
-                        if prop_name == prop {
-                            return Some(n);
+                    DeviceTreeStructure::Property(node_prop) => {
+                        if node_prop.name == prop {
+                            return Some(node_prop);
                         }
                     }
                     DeviceTreeStructure::NodeBegin(_) => {
@@ -248,23 +234,64 @@ impl<'a> DeviceTree<'a> {
 
 /// Iterates over the contents of the DeviceTree and performs minimal
 /// validation.
-pub struct DeviceTreeStructureIterator<'a> {
+pub struct DeviceTreeStructureIterator<'dtb> {
     index: usize,
     depth: isize,
-    strings: &'a [u8],
-    bytes: &'a [u8],
+    strings: &'dtb [u8],
+    bytes: &'dtb [u8],
+}
+
+#[derive(Debug)]
+pub struct DeviceTreeNodeProperty<'dtb> {
+    pub bytes: &'dtb [u8],
+    pub name: &'dtb str,
+}
+
+impl<'dtb> DeviceTreeNodeProperty<'dtb> {
+    fn read_u64(&self, offset: usize) -> Option<u64> {
+        const LEN: usize = mem::size_of::<u64>();
+        if offset + LEN > self.bytes.len() {
+            return None;
+        }
+        let bytes: Result<[u8; LEN], _> = self.bytes[offset..offset + LEN].try_into();
+        match bytes {
+            Ok(b) => {
+                Some(u64::from_be_bytes(b))
+            }
+            Err(_) => None,
+        }
+    }
+
+    fn read_usize(&self, offset: usize) -> Option<usize> {
+        if offset + LEN > self.bytes.len() {
+            return None;
+        }
+        const LEN: usize = mem::size_of::<usize>();
+        let bytes: Result<[u8; LEN], _> = self.bytes[offset..offset + LEN].try_into();
+        match bytes {
+            Ok(b) => {
+                Some(usize::from_be_bytes(b))
+            }
+            Err(_) => None,
+        }
+    }
+
+    fn new(bytes: &'dtb [u8], name: &'dtb str) -> Self {
+        Self { bytes, name }
+    }
+
 }
 
 /// Elements of the device tree structure and their values.
 #[derive(Debug)]
-pub enum DeviceTreeStructure<'a> {
-    NodeBegin(&'a str),
+pub enum DeviceTreeStructure<'dtb> {
+    NodeBegin(&'dtb str),
     NodeEnd,
-    Property(&'a [u8], &'a str),
+    Property(DeviceTreeNodeProperty<'dtb>)
 }
 
 
-impl<'a> DeviceTreeStructureIterator<'a> {
+impl<'dtb> DeviceTreeStructureIterator<'dtb> {
     fn consume_u32(&mut self) -> Option<u32> {
         let bytes: Result<[u8; 4], _> = self.bytes[self.index..self.index + 4].try_into();
         match bytes {
@@ -280,7 +307,7 @@ impl<'a> DeviceTreeStructureIterator<'a> {
             self.index += 4 - (self.index % 4);
         }
     }
-    fn consume_str(&mut self) -> Option<&'a str> {
+    fn consume_str(&mut self) -> Option<&'dtb str> {
         match str_from_bytes(&self.bytes[self.index..]) {
             None => {
                 log!("Corrupt dtb");
@@ -295,8 +322,8 @@ impl<'a> DeviceTreeStructureIterator<'a> {
     }
 }
 
-impl<'a> Iterator for DeviceTreeStructureIterator<'a> {
-    type Item = DeviceTreeStructure<'a>;
+impl<'dtb> Iterator for DeviceTreeStructureIterator<'dtb> {
+    type Item = DeviceTreeStructure<'dtb>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.index < self.bytes.len() {
@@ -328,7 +355,7 @@ impl<'a> Iterator for DeviceTreeStructureIterator<'a> {
                     let slc = &self.bytes[start..end];
                     // Do not consume the name since it lives in the strings section.
                     let name = str_from_bytes(&self.strings[nameoff..])?;
-                    return Some(DeviceTreeStructure::Property(slc, name));
+                    return Some(DeviceTreeStructure::Property(DeviceTreeNodeProperty::new(slc, name)));
                 }
                 FDT_END => {
                     if self.depth != 0 {
@@ -385,7 +412,11 @@ mod tests {
         let interrupt_controller_spot = dtb.find("interrupt-controller").unwrap();
         assert_eq!(interrupt_controller_spot, 0xc000000);
 
-        let _ = dtb.find_property("uart", "reg").unwrap();
+        let prop = dtb.find_property("uart", "reg").unwrap();
+        assert_eq!(prop.read_u64(0), Some(0x10000000));
+        assert_eq!(prop.read_u64(8), Some(0x100));
+        assert_eq!(prop.read_u64(9), None);
+        assert_eq!(prop.read_u64(16), None);
         let uart_regs = dtb.find_regs("uart").unwrap();
         assert_eq!(uart_regs, (0x10000000, 0x100));
     }
