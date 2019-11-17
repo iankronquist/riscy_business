@@ -80,6 +80,7 @@ fn trap_reason(mcause: usize) -> &'static str {
     }
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn rtrap(
     mepc: usize,
