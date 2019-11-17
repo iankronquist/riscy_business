@@ -16,7 +16,7 @@ pub struct Range {
 
 impl Range {
     pub fn new(start: usize, end: usize) -> Self {
-        Self { start: start, end: end }
+        Self { start, end }
     }
     pub fn len(&self) -> usize {
         self.end - self.start

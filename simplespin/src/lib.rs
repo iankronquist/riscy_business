@@ -15,8 +15,7 @@ pub struct Mutex<T> {
 impl<T> Mutex<T> {
     pub const fn new(item: T) -> Self {
         Self {
-            lock: AtomicBool::new(false),
-            item: UnsafeCell::new(item),
+            lock: AtomicBool::new(false), item: UnsafeCell::new(item),
         }
     }
 

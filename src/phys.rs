@@ -14,7 +14,7 @@ static PHYS_ALLOC: Mutex<PhysicalRangeAllocator> = Mutex::new(PhysicalRangeAlloc
 impl PhysicalRangeAllocator {
     pub fn alloc(&mut self, sz: usize) -> Option<PhysicalRange> {
         if let Some(rg) = self.rs.find(sz) {
-            return Some(PhysicalRange { rg: rg });
+            return Some(PhysicalRange { rg });
         }
         None
     }
