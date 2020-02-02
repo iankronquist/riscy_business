@@ -26,6 +26,8 @@ mod constants;
 mod debug;
 mod device_tree;
 mod heap;
+mod interrupts;
+mod math;
 mod mmio;
 mod mmu;
 mod phys;
@@ -61,4 +63,6 @@ pub extern "C" fn rmain(_hartid: usize, device_tree_addr: usize) {
     let v = vec![1, 2, 3];
 
     log!("Hello riscv world {:?}", v);
+    interrupts::info();
+    //unsafe { asm!("ecall"); }
 }

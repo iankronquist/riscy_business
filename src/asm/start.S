@@ -86,7 +86,7 @@ _start:
     li t0, SPP_SUPERVISOR | SPIE_YES | SIE_YES
     csrw sstatus, t0
 
-    /* Enable machine interrupts */
+    /* Enable supervisor interrupts */
     li t0, (SIE_STIE | SIE_SEIE | SIE_SSIE)
     csrw sie, t0
 

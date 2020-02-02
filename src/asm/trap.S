@@ -61,6 +61,7 @@ _trap:
     mv a5, t5 /* trap context */
     /* We are now on a trusted stack */
     ld sp, (32*REG_SIZE)(t5)
+
     call rtrap
 
     /* machine exception pc gets return value of rtrap */

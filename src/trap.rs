@@ -1,4 +1,5 @@
 use crate::log;
+use crate::interrupts;
 use core::mem;
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -98,8 +99,9 @@ pub extern "C" fn rtrap(
     log!("Trap Context: {:#x?}", unsafe { *trapctx });
     match mcause {
         SUPERVISOR_TIMER_INTERRUPT => {
-            let mut mtime: usize;
-            let mut mtimecmp: usize;
+            interrupts::disable();
+            let mut stime: usize;
+            let mut stimecmp: usize;
             //unsafe {
             //    //asm!("csrr mtime, $0; csrr mtimecmp, $1" : "=r"(mtime), "=r"(mtimecmp):);
             //    mtimecmp = mtime + 0x10_000_000;
@@ -114,11 +116,9 @@ pub extern "C" fn rtrap(
             );
         }
     }
-
     let mut cycle: usize;
-    unsafe {
-        asm!("rdcycle $0" : "=r"(cycle));
-    }
+    unsafe { asm!("rdcycle $0" : "=r"(cycle)); }
+
     log!("Trap cycle: {:x} ", cycle);
 
     //let mut time: usize;

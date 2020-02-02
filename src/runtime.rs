@@ -1,6 +1,8 @@
 #![cfg(not(test))]
 use crate::log;
 use crate::logger;
+use crate::debug;
+use crate::interrupts;
 use core::panic::PanicInfo;
 use core::sync::atomic;
 
@@ -11,6 +13,10 @@ static HAVE_PANICKED: atomic::AtomicBool = atomic::AtomicBool::new(false);
 #[panic_handler]
 #[no_mangle]
 pub fn panic(info: &PanicInfo) -> ! {
+    // Disable interrupts.
+    interrupts::disable();
+
+    // Prevent recursive panics or concurrent panics on several cores.
     if !HAVE_PANICKED.compare_and_swap(false, true, atomic::Ordering::SeqCst) {
         unsafe {
             logger::LOGGER.bust_lock();
@@ -22,7 +28,8 @@ pub fn panic(info: &PanicInfo) -> ! {
 
     loop {
         unsafe {
-            asm!("csrw sie, zero; wfi;"::::"volatile");
+            interrupts::disable();
+            interrupts::wait();
         }
     }
 }
